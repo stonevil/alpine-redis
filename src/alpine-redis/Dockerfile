@@ -1,4 +1,4 @@
-FROM stonevil/alpine-base
+FROM quay.io/stonevil/alpine-base
 MAINTAINER stonevil@gmail.com
 
 # Please add 'vm.overcommit_memory = 1' to /etc/sysctl.conf on HOST machine
