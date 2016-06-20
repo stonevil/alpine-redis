@@ -1,0 +1,36 @@
+FROM stonevil/alpine-base
+MAINTAINER stonevil@gmail.com
+
+# Please add 'vm.overcommit_memory = 1' to /etc/sysctl.conf on HOST machine
+
+ENV REDIS_VERSION=${REDIS_VERSION:-3.2.0-r0}
+
+LABEL com.stonevil.redis.version=${REDIS_VERSION}
+
+RUN ${APK_UPGRADE_CMD} && \
+  ${APK_INSTALL_CMD} redis=${REDIS_VERSION} && \
+  ${APK_CACHE_RM}
+
+ADD _rootfs /
+ONBUILD ADD _rootfs_vendor /
+
+EXPOSE 6379
+
+VOLUME ["/data/redis"]
+
+ENV REDIS_SERVER_SECURITY_INIT=${REDIS_SERVER_SECURITY_INIT:-false}
+ENV REDIS_SERVER_PASSWORD=${REDIS_SERVER_PASSWORD:-RedisPassword}
+ENV REDIS_SERVER_CONFIG_COMMAND_NAME=${REDIS_SERVER_CONFIG_COMMAND_NAME:-redisserverconfigcommand}
+
+ENV REDIS_SERVER_BIND=${REDIS_SERVER_BIND:-0.0.0.0}
+ENV REDIS_SERVER_PROTECTED_MODE=${REDIS_SERVER_PROTECTED_MODE:-yes}
+ENV REDIS_SERVER_TIMEOUT=${REDIS_SERVER_TIMEOUT:-0}
+ENV REDIS_SERVER_TCP_KEEPALIVE=${REDIS_SERVER_TCP_KEEPALIVE:-60}
+ENV REDIS_SERVER_MAX_MEMORY=${REDIS_SERVER_MAX_MEMORY:-2gb}
+ENV REDIS_SERVER_MAX_CLIENTS=${REDIS_SERVER_MAX_CLIENTS:-10000}
+
+CMD mkdir -p /data/redis && chown -Rf redis /data/redis && \
+  (sed -i -e 's|_REDISSERVERBIND_|'"${REDIS_SERVER_BIND}"'|g' -e 's|_REDISSERVERPROTECTEDMODE_|'"${REDIS_SERVER_PROTECTED_MODE}"'|g' -e 's|_REDISSERVERTIMEOUT_|'"${REDIS_SERVER_TIMEOUT}"'|g' -e 's|_REDISSERVERTCPKEEPALIVE_|'"${REDIS_SERVER_TCP_KEEPALIVE}"'|g' -e 's|_REDISSERVERMAXMEMORY_|'"${REDIS_SERVER_MAX_MEMORY}"'|g' -e 's|_REDISSERVERMAXCLIENTS_|'"${REDIS_SERVER_MAX_CLIENTS}"'|g' /etc/redis.conf) && \
+  if ${REDIS_SERVER_SECURITY_INIT}; then \
+  (echo "rename-command CONFIG ${REDIS_SERVER_CONFIG_COMMAND_NAME}" >> /etc/redis.conf && echo "requirepass \"${REDIS_SERVER_PASSWORD}\"" >> /etc/redis.conf); fi && \
+  gosu redis redis-server /etc/redis.conf --dir /data/redis
